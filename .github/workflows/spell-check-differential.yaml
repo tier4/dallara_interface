@@ -10,6 +10,12 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v3
 
+      - name: Create temporary .cspell.json
+        run: |
+          echo '{
+            "words": ["dallara", "awsim", "autonoma"]
+          }' > .cspell.json
+
       - name: Run spell-check
         uses: autowarefoundation/autoware-github-actions/spell-check@v1
         with:
