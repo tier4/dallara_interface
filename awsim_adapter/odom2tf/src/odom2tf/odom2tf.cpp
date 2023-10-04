@@ -21,9 +21,11 @@
 using std::placeholders::_1;
 
 Odom2tf::Odom2tf() : Node("odom2tf_node") {
+  rclcpp::QoS qos(rclcpp::KeepLast(1));
+  qos.best_effort();
   pub_tf_ = this->create_publisher<TFMessage>("/tf", 1);
   sub_odom_ = this->create_subscription<Odometry>(
-      "/localization/kinematic_state", 1, std::bind(&Odom2tf::odomCallback, this, _1));
+      "input", qos, std::bind(&Odom2tf::odomCallback, this, _1));
 }
 
 void Odom2tf::odomCallback(const Odometry::SharedPtr odometry)
