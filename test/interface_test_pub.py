@@ -2,9 +2,14 @@
 import rclpy
 from rclpy.node import Node
 from autoware_auto_planning_msgs.msg import Path, PathWithLaneId, Trajectory, PathPoint, PathPointWithLaneId, TrajectoryPoint
+from autoware_auto_control_msgs.msg import AckermannControlCommand, AckermannLateralCommand, HighLevelControlCommand, LongitudinalCommand
+from autoware_auto_vehicle_msgs.msg import GearCommand, GearReport, SteeringReport, VelocityReport
+
 from std_msgs.msg import Header
 from geometry_msgs.msg import Pose, Point
 from builtin_interfaces.msg import Duration
+from builtin_interfaces.msg import Time
+
 
 class PathPublisher(Node):
 
@@ -13,6 +18,9 @@ class PathPublisher(Node):
         self.path_publisher = self.create_publisher(Path, 'path_topic', 10)
         self.path_with_lane_id_publisher = self.create_publisher(PathWithLaneId, 'path_with_lane_id_topic', 10)
         self.trajectory_publisher = self.create_publisher(Trajectory, '/planning/trajectory', 10)
+        # Publishers for the messages
+        self.ackermann_control_command_publisher = self.create_publisher(AckermannControlCommand, '/control/command/control_cmd', 10)
+        self.gear_command_publisher = self.create_publisher(GearCommand, '/control/command/gear_cmd', 10)
         
         timer_period = 0.1  # 10Hz
         self.timer = self.create_timer(timer_period, self.timer_callback)
@@ -59,6 +67,18 @@ class PathPublisher(Node):
         self.path_with_lane_id_publisher.publish(path_with_lane_id_msg)
         self.trajectory_publisher.publish(trajectory_msg)
         self.get_logger().info('Messages Published')
+
+        # Create and publish each message
+        timestamp = Time(sec=int(self.get_clock().now().seconds_nanoseconds()[0]))
+        ackermann_control_cmd = AckermannControlCommand()
+        ackermann_control_cmd.stamp = timestamp
+        self.ackermann_control_command_publisher.publish(ackermann_control_cmd)
+         
+        gear_cmd = GearCommand()
+        gear_cmd.stamp = timestamp
+        gear_cmd.command = 1
+        self.gear_command_publisher.publish(gear_cmd)
+
 
 def main(args=None):
     rclpy.init(args=args)
