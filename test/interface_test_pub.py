@@ -12,7 +12,7 @@ class PathPublisher(Node):
         super().__init__('path_publisher')
         self.path_publisher = self.create_publisher(Path, 'path_topic', 10)
         self.path_with_lane_id_publisher = self.create_publisher(PathWithLaneId, 'path_with_lane_id_topic', 10)
-        self.trajectory_publisher = self.create_publisher(Trajectory, 'trajectory_topic', 10)
+        self.trajectory_publisher = self.create_publisher(Trajectory, '/planning/trajectory', 10)
         
         timer_period = 0.1  # 10Hz
         self.timer = self.create_timer(timer_period, self.timer_callback)

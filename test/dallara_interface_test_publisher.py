@@ -9,11 +9,11 @@ class DallaraInterfaceTestPublisher(Node):
         super().__init__('msg_publisher')
         
         # Publishers for the messages
-        self.powertrain_data_publisher = self.create_publisher(PowertrainData, 'powertrain_data_topic', 10)
-        self.race_control_publisher = self.create_publisher(RaceControl, 'race_control_topic', 10)
-        self.to_raptor_publisher = self.create_publisher(ToRaptor, 'to_raptor_topic', 10)
-        self.vehicle_data_publisher = self.create_publisher(VehicleData, 'vehicle_data_topic', 10)
-        self.vehicle_inputs_publisher = self.create_publisher(VehicleInputs, 'vehicle_inputs_topic', 10)
+        self.powertrain_data_publisher = self.create_publisher(PowertrainData, '/powertrain_data', 10)
+        self.race_control_publisher = self.create_publisher(RaceControl, '/race_control', 10)
+        self.to_raptor_publisher = self.create_publisher(ToRaptor, '/to_raptor', 10)
+        self.vehicle_data_publisher = self.create_publisher(VehicleData, '/vehicle_data', 10)
+        self.vehicle_inputs_publisher = self.create_publisher(VehicleInputs, '/vehicle_inputs', 10)
         
         timer_period = 0.1  # 10Hz
         self.timer = self.create_timer(timer_period, self.timer_callback)
