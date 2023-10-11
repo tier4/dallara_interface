@@ -1,1 +1,5 @@
 repositories:
+  racing/sim_msgs:
+    type: git
+    url: https://github.com/autonomalabs/sim-msgs.git
+    version: main
