@@ -6,7 +6,7 @@ from std_msgs.msg import Header
 class DallaraInterfaceTestPublisher(Node):
 
     def __init__(self):
-        super().__init__('msg_publisher')
+        super().__init__('dallara_interface_moc')
         self.count = 0
 
         self.create_subscription(PowertrainData, '/powertrain_data', self.powertrain_data_callback, 10)
