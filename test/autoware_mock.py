@@ -14,7 +14,7 @@ from builtin_interfaces.msg import Time
 class PathPublisher(Node):
 
     def __init__(self):
-        super().__init__('autoware_moc')
+        super().__init__('autoware_mock')
         self.path_publisher = self.create_publisher(Path, 'path_topic', 10)
         self.path_with_lane_id_publisher = self.create_publisher(PathWithLaneId, 'path_with_lane_id_topic', 10)
         self.trajectory_publisher = self.create_publisher(Trajectory, '/planning/trajectory', 10)
