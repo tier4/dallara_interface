@@ -7,7 +7,7 @@ from std_msgs.msg import Header
 class DallaraInterfaceTestSubscriber(Node):
 
     def __init__(self):
-        super().__init__('msg_subscriber')
+        super().__init__('awsim_mock')
         
         # Subscribers for the messages
         self.create_subscription(VehicleInputs, '/vehicle_inputs', self.vehicle_inputs_callback, 10)
