@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>
+  <!-- Essential parameters -->
+  <!--arg name="map_path" description="point cloud and lanelet2 map directory path"/-->
+  <!-- arg name="sensor_model" description="sensor model name"/ -->
+  <arg name="vehicle_id" default="$(env VEHICLE_ID default)" description="vehicle specific ID"/>
+
+  <!-- Optional parameters -->
+  <!-- Map -->
+  <arg name="lanelet2_map_file" default="lanelet2_map.osm" description="lanelet2 map file name"/>
+  <arg name="pointcloud_map_file" default="pointcloud_map.pcd" description="pointcloud map file name"/>
+  <!-- Control -->
+  <!-- Vehicle -->
+  <arg name="launch_vehicle_interface" default="false"/>
+  <!-- System -->
+  <arg name="system_run_mode" default="online" description="run mode in system"/>
+  <!-- Tools -->
+  <arg name="rviz" default="true" description="launch rviz"/>
+  <arg name="rviz_config" default="$(find-pkg-share autoware_launch)/rviz/autoware.rviz" description="rviz config"/>
+
+  <arg name="use_sim_time" default="true"/>
+  <arg name="map_path" default="$(find-pkg-share dallara_launch)/map"/>
+  <arg name="vehicle_model" default="dallara"  description="vehicle model name"/>
+
+  <include file="$(find-pkg-share dallara_launch)/launch/test_racing_vehicle.launch.xml"/>
+  <include file="$(find-pkg-share odom2tf)/launch/awsim_odom2tf.launch.xml"/>
+  <include file="$(find-pkg-share dallara_interface)/launch/dallara_interface.launch.xml"/>
+
+  <!-- Global parameters -->
+  <group scoped="false">
+    <include file="$(find-pkg-share global_parameter_loader)/launch/global_params.launch.py">
+      <arg name="use_sim_time" value="$(var use_sim_time)"/>
+      <arg name="vehicle_model" value="$(var vehicle_model)"/>
+    </include>
+  </group>
+
+  <!-- Map -->
+  <group>
+    <push-ros-namespace namespace="map"/>
+
+    <!-- map_container -->
+    <node_container pkg="rclcpp_components" exec="component_container" name="map_container" namespace="">
+
+      <!-- map_loader::Lanelet2MapLoaderNode -->
+      <composable_node pkg="map_loader" plugin="Lanelet2MapLoaderNode" name="lanelet2_map_loader" namespace="">
+        <remap from="output/lanelet2_map" to="vector_map" />
+        <param name="lanelet2_map_path" value="$(var map_path)/$(var lanelet2_map_file)" />
+        <param from="$(find-pkg-share autoware_launch)/config/map/lanelet2_map_loader.param.yaml" />
+        <extra_arg name="use_intra_process_comms" value="false" />
+      </composable_node>
+
+      <!-- map_loader::Lanelet2MapVisualizationNode -->
+      <composable_node pkg="map_loader" plugin="Lanelet2MapVisualizationNode" name="lanelet2_map_visualization" namespace="">
+        <remap from="input/lanelet2_map" to="vector_map" />
+        <remap from="output/lanelet2_map_marker" to="vector_map_marker" />
+        <param name="lanelet2_map_path" value="$(var map_path)/$(var lanelet2_map_file)" />
+        <param from="$(find-pkg-share autoware_launch)/config/map/lanelet2_map_loader.param.yaml" />
+        <extra_arg name="use_intra_process_comms" value="false" />
+      </composable_node>
+
+      <!-- map_tf_generator::VectorMapTFGeneratorNode -->
+      <composable_node pkg="map_tf_generator" plugin="VectorMapTFGeneratorNode" name="vector_map_tf_generator" namespace="">
+        <param name="map_frame" value="map" />
+        <param name="viewer_frame" value="viewer" />
+        <extra_arg name="use_intra_process_comms" value="false" />
+      </composable_node>
+     
+    </node_container>
+  </group> <!-- map -->
+
+  <!-- Perception -->
+  <group>
+    <push-ros-namespace namespace="perception"/>
+
+    <!-- object_recognition -->
+    <group>
+      <push-ros-namespace namespace="object_recognition"/>
+
+
+      <!-- detection -->
+      <!--group>
+        <push-ros-namespace namespace="detection"/>
+        <node pkg="topic_tools" exec="relay" name="object_relay" output="screen">
+          <param from="input_topic" value="/awsim/ground_truth/perception/object_recognition/detection/objects"/>
+          <param from="output_topic" value="objects"/>
+        </node>
+        </group>
+
+      </group --> <!-- detection -->
+
+      <!-- tracking -->
+      <group>
+        <push-ros-namespace namespace="tracking"/>
+        <!-- multi_object_tracker -->
+        <node pkg="multi_object_tracker" exec="multi_object_tracker" name="multi_object_tracker" output="screen">
+          <remap from="input" to="/awsim/ground_truth/perception/object_recognition/detection/objects"/> <!-- autoware_auto_perception_msgs/DetectedObjects -->
+          <remap from="output" to="objects"/> <!-- autoware_auto_perception_msgs/TrackedObjects -->
+          <param name="world_frame_id" value="map"/>
+          <param name="publish_rate" value="10.0"/>
+          <param name="enable_delay_compensation" value="false"/>
+          <param from="$(find-pkg-share multi_object_tracker)/config/default_tracker.param.yaml"/>
+          <param from="$(find-pkg-share multi_object_tracker)/config/data_association_matrix.param.yaml"/>
+        </node>
+
+      </group> <!-- tracking -->
+
+      <!-- prediction -->
+      <group>
+        <push-ros-namespace namespace="prediction"/>
+
+        <!-- map_based_prediction -->
+        <node pkg="map_based_prediction" exec="map_based_prediction" name="map_based_prediction" output="screen">
+          <remap from="/vector_map" to="/map/vector_map"/>
+          <remap from="input" to="/perception/object_recognition/tracking/objects"/>
+          <remap from="objects" to="/perception/object_recognition/objects"/> <!-- autoware_auto_perception_msgs/PredictedObjects -->
+          <param from="$(find-pkg-share map_based_prediction)/config/map_based_prediction.param.yaml"/>
+        </node>
+
+      </group> <!-- prediction -->
+    </group>
+    
+  </group> <!-- Perception -->
+
+  <!-- Planning -->
+  <group>
+    <push-ros-namespace namespace="planning"/>
+
+    <!-- mission_planning -->
+    <group>
+      <push-ros-namespace namespace="mission_planning"/>
+
+      <!-- mission_planner -->
+      <node pkg="mission_planner" exec="mission_planner" name="mission_planner" output="screen">
+        <remap from="input/modified_goal" to="/planning/scenario_planning/modified_goal"/>
+        <remap from="input/vector_map" to="/map/vector_map"/>
+        <remap from="debug/route_marker" to="/planning/mission_planning/route_marker"/>
+        <param from="$(find-pkg-share autoware_launch)/config/planning/mission_planning/mission_planner/mission_planner.param.yaml"/>
+      </node>
+
+      <!-- goal_pose_visualizer -->
+      <node pkg="mission_planner" exec="goal_pose_visualizer" name="goal_pose_visualizer" output="screen">
+        <remap from="input/route" to="/planning/mission_planning/route"/>
+        <remap from="output/goal_pose" to="/planning/mission_planning/echo_back_goal_pose"/>
+      </node>
+
+    </group> <!-- mission_planning -->
+
+    <!-- scenario_planning -->
+    <group>
+      <push-ros-namespace namespace="scenario_planning"/>
+
+      <!-- scenario_selector -->
+      <group>
+        <arg name="cmd" default="ros2 topic pub /planning/scenario_planning/scenario tier4_planning_msgs/msg/Scenario '{current_scenario: LaneDriving, activating_scenarios: [LaneDriving]}'"/>
+        <executable cmd="$(var cmd)" name="scenario_pub" shell="true"/>
+      </group> <!-- scenario_selector -->
+
+      <!-- lane_driving -->
+      <group>
+        <push-ros-namespace namespace="lane_driving"/>
+
+        <!-- behavior_planning -->
+        <group>
+          <push-ros-namespace namespace="behavior_planning"/>
+
+          <include file="$(find-pkg-share rtc_auto_mode_manager)/launch/rtc_auto_mode_manager.launch.xml">
+            <arg name="param_path" value="$(find-pkg-share autoware_launch)/config/planning/scenario_planning/lane_driving/behavior_planning/rtc_auto_mode_manager/rtc_auto_mode_manager.param.yaml"/>
+          </include>
+
+          <!-- behavior_planning_container -->
+          <node_container pkg="rclcpp_components" exec="component_container" name="behavior_planning_container" namespace="">
+
+            <!-- behavior_path_planner::BehaviorPathPlannerNode -->
+            <composable_node pkg="behavior_path_planner" plugin="behavior_path_planner::BehaviorPathPlannerNode" name="behavior_path_planner" namespace="">
+              <remap from="~/input/route" to="/planning/mission_planning/route" />
+              <remap from="~/input/vector_map" to="/map/vector_map" />
+              <remap from="~/input/perception" to="/perception/object_recognition/objects" /> <!-- autoware_auto_perception_msgs/PredictedObjects -->
+              <remap from="~/input/occupancy_grid_map" to="/perception/occupancy_grid_map/map" />
+              <remap from="~/input/costmap" to="/planning/scenario_planning/parking/costmap_generator/occupancy_grid" />
+              <remap from="~/input/odometry" to="/localization/kinematic_state" />
+              <remap from="~/input/accel" to="/localization/acceleration" />
+              <remap from="~/input/scenario" to="/planning/scenario_planning/scenario" />
+              <remap from="~/output/path" to="path_with_lane_id" />
+              <remap from="~/output/turn_indicators_cmd" to="/planning/turn_indicators_cmd" />
+              <remap from="~/output/hazard_lights_cmd" to="/planning/hazard_lights_cmd" />
+              <remap from="~/output/modified_goal" to="/planning/scenario_planning/modified_goal" />
+              <param name="bt_tree_config_path" value="$(find-pkg-share autoware_launch)/config/planning/scenario_planning/lane_driving/behavior_planning/behavior_path_planner/behavior_path_planner_tree.xml"/>
+              <param name="lane_change.enable_abort_lane_change" value="false"/>
+              <param name="lane_change.enable_collision_check_at_prepare_phase" value="false"/>
+              <param name="lane_change.use_predicted_path_outside_lanelet" value="false"/>
+              <param name="lane_change.use_all_predicted_path" value="false"/>
+              <param from="$(find-pkg-share autoware_launch)/config/planning/scenario_planning/common/nearest_search.param.yaml" />
+              <param from="$(find-pkg-share autoware_launch)/config/planning/scenario_planning/lane_driving/behavior_planning/behavior_path_planner/side_shift/side_shift.param.yaml" />
+              <param from="$(find-pkg-share autoware_launch)/config/planning/scenario_planning/lane_driving/behavior_planning/behavior_path_planner/avoidance/avoidance.param.yaml" />
+              <param from="$(find-pkg-share autoware_launch)/config/planning/scenario_planning/lane_driving/behavior_planning/behavior_path_planner/lane_change/lane_change.param.yaml" />
+              <param from="$(find-pkg-share autoware_launch)/config/planning/scenario_planning/lane_driving/behavior_planning/behavior_path_planner/pull_over/pull_over.param.yaml" />
+              <param from="$(find-pkg-share autoware_launch)/config/planning/scenario_planning/lane_driving/behavior_planning/behavior_path_planner/lane_following/lane_following.param.yaml" />
+              <param from="$(find-pkg-share autoware_launch)/config/planning/scenario_planning/lane_driving/behavior_planning/behavior_path_planner/behavior_path_planner.param.yaml" />
+              <param from="$(find-pkg-share autoware_launch)/config/planning/scenario_planning/lane_driving/behavior_planning/behavior_path_planner/drivable_area_expansion.param.yaml" />
+              <extra_arg name="use_intra_process_comms" value="false" />
+            </composable_node>
+
+          </node_container>
+        </group> <!-- behavior_planning -->
+      </group> <!-- lane_driving -->
+    </group>
+  </group>
+
+  <!-- Tools -->
+  <group>
+    <node pkg="rviz2" exec="rviz2" name="rviz2" output="screen" args="-d $(find-pkg-share dallara_launch)/rviz_config/racing.rviz" />
+  </group>
+
+
+</launch>
