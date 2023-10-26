@@ -32,7 +32,7 @@ void Odom2tf::odomCallback(const Odometry::SharedPtr odometry)
 {
   TransformStamped tf;
   tf.header.stamp = get_clock()->now();
-  tf.header.frame_id = "odom";
+  tf.header.frame_id = "map";
   tf.child_frame_id = "base_link";
   tf.transform.translation.x = odometry->pose.pose.position.x;
   tf.transform.translation.y = odometry->pose.pose.position.y;
