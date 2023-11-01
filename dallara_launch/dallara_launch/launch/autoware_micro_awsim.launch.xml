@@ -22,12 +22,6 @@
   <arg name="map_path" default="$(find-pkg-share dallara_launch)/map"/>
   <arg name="vehicle_model" default="dallara"  description="vehicle model name"/>
 
-  <arg name="model_file" default="$(find-pkg-share dallara_description)/urdf/dallara.xacro" description="path to the file of model settings (*.xacro)"/>
-  <node name="robot_state_publisher" pkg="robot_state_publisher" exec="robot_state_publisher">
-      <param name="robot_description" value="$(command 'xacro $(var model_file)' 'warn')"/>
-  </node>
-  <node pkg="dallara_interface" exec="dallara_interface_node" name="dallara_interface" output="screen"/>
-
   <!-- Global parameters -->
   <group scoped="false">
     <include file="$(find-pkg-share global_parameter_loader)/launch/global_params.launch.py">
@@ -35,6 +29,12 @@
       <arg name="vehicle_model" value="$(var vehicle_model)"/>
     </include>
   </group>
+
+  <arg name="model_file" default="$(find-pkg-share dallara_description)/urdf/dallara.xacro" description="path to the file of model settings (*.xacro)"/>
+  <node name="robot_state_publisher" pkg="robot_state_publisher" exec="robot_state_publisher">
+      <param name="robot_description" value="$(command 'xacro $(var model_file)' 'warn')"/>
+  </node>
+  <node pkg="dallara_interface" exec="dallara_interface_node" name="dallara_interface" output="screen"/>
 
   <!-- Localization -->
   <group>
