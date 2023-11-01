@@ -36,12 +36,6 @@
     </include>
   </group>
 
-  <node pkg="path_to_trajectory" exec="path_to_trajectory_node" name="path_to_trajectory" output="screen">
-    <remap from="input" to="behavior_planning/path_with_lane_id"/>
-    <remap from="output" to="/planning/scenario_planning/trajectory"/>
-  </node>
-
-
   <!-- Localization -->
   <group>
     <push-ros-namespace namespace="localization"/>
@@ -189,10 +183,6 @@
         <group>
           <push-ros-namespace namespace="behavior_planning"/>
 
-          <include file="$(find-pkg-share rtc_auto_mode_manager)/launch/rtc_auto_mode_manager.launch.xml">
-            <arg name="param_path" value="$(find-pkg-share autoware_launch)/config/planning/scenario_planning/lane_driving/behavior_planning/rtc_auto_mode_manager/rtc_auto_mode_manager.param.yaml"/>
-          </include>
-
           <!-- behavior_planning_container -->
           <node_container pkg="rclcpp_components" exec="component_container" name="behavior_planning_container" namespace="">
 
@@ -229,8 +219,21 @@
           </node_container>
         </group> <!-- behavior_planning -->
       </group> <!-- lane_driving -->
+
+      <!-- Customizable -->
+      <node pkg="path_to_trajectory" exec="path_to_trajectory_node" name="path_to_trajectory" output="screen">
+        <remap from="input" to="/planning/scenario_planning/lane_driving/behavior_planning/path_with_lane_id"/>
+        <remap from="output" to="/planning/scenario_planning/trajectory"/>
+      </node>
+
     </group>
   </group>
+
+  <!-- Control -->
+  <group>
+    <include file="$(find-pkg-share autoware_launch)/launch/components/tier4_control_component.launch.xml"/>
+  </group>
+
 
   <!-- Tools -->
   <group>
