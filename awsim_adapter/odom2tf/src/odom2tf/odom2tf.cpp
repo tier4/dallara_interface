@@ -22,18 +22,17 @@ using std::placeholders::_1;
 
 Odom2tf::Odom2tf() : Node("odom2tf_node") {
   rclcpp::QoS qos(rclcpp::KeepLast(1));
-  qos.best_effort();
   pub_tf_ = this->create_publisher<TFMessage>("/tf", 1);
+  pub_twist_ = this->create_publisher<TwistWithCovarianceStamped>("out_twist", 1);
   sub_odom_ = this->create_subscription<Odometry>(
-      "input", qos, std::bind(&Odom2tf::odomCallback, this, _1));
+      "in_odom", qos, std::bind(&Odom2tf::odomCallback, this, _1));
 }
 
 void Odom2tf::odomCallback(const Odometry::SharedPtr odometry)
 {
   TransformStamped tf;
-  tf.header.stamp = get_clock()->now();
-  tf.header.frame_id = "map";
-  tf.child_frame_id = "base_link";
+  tf.header = odometry->header;
+  tf.child_frame_id = odometry->child_frame_id;
   tf.transform.translation.x = odometry->pose.pose.position.x;
   tf.transform.translation.y = odometry->pose.pose.position.y;
   tf.transform.translation.z = odometry->pose.pose.position.z;
@@ -41,6 +40,11 @@ void Odom2tf::odomCallback(const Odometry::SharedPtr odometry)
   tf2_msgs::msg::TFMessage tf_msg{};
   tf_msg.transforms.emplace_back(std::move(tf));
   pub_tf_->publish(tf_msg);
+
+  TwistWithCovarianceStamped twist;
+  twist.header = odometry->header;
+  twist.twist = odometry->twist;
+  pub_twist_->publish(twist);
 }
 
 int main(int argc, char *argv[]) {
