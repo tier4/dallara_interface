@@ -16,7 +16,7 @@
   <arg name="system_run_mode" default="online" description="run mode in system"/>
   <!-- Tools -->
   <arg name="rviz" default="true" description="launch rviz"/>
-  <arg name="rviz_config" default="$(find-pkg-share autoware_launch)/rviz/autoware.rviz" description="rviz config"/>
+  <arg name="rviz_config" default="$(find-pkg-share dallara_launch)/rviz_config/autoware.rviz" description="rviz config"/>
 
   <arg name="use_sim_time" default="true"/>
   <arg name="map_path" default="$(find-pkg-share dallara_launch)/map"/>
@@ -175,6 +175,20 @@
         <executable cmd="$(var cmd)" name="scenario_pub" shell="true"/>
       </group> <!-- scenario_selector -->
 
+      <!-- operation_mode -->
+      <group>
+        <arg name="cmd" default="ros2 topic pub /system/operation_mode/state autoware_adapi_v1_msgs/msg/OperationModeState '{
+          mode: 1,
+          is_autoware_control_enabled: true,
+          is_in_transition: false,
+          is_stop_mode_available: true,
+          is_autonomous_mode_available: true,
+          is_local_mode_available: true,
+          is_remote_mode_available: true
+          }'"/>
+        <executable cmd="$(var cmd)" name="operation_mode_pub" shell="true"/>
+      </group> <!-- operation_mode -->
+
       <!-- lane_driving -->
       <group>
         <push-ros-namespace namespace="lane_driving"/>
@@ -229,16 +243,39 @@
     </group>
   </group>
 
-  <!-- Control -->
+  <!-- control -->
+  <node pkg="trajectory_follower_node" exec="simple_trajectory_follower_exe" name="simple_trajectory_follower" output="screen">
+    <param name="use_external_target_vel" value="false"/>
+    <param name="external_target_vel" value="10.0"/>
+    <param name="lateral_deviation" value="0.0"/>
+
+    <remap from="input/kinematics" to="/localization/kinematic_state"/>
+    <remap from="input/trajectory" to="/planning/scenario_planning/trajectory"/>
+    <remap from="output/control_cmd" to="/control/command/control_cmd"/>
+  </node>
+
+  <!-- vehicle -->
+  <include file="$(find-pkg-share raw_vehicle_cmd_converter)/launch/raw_vehicle_converter.launch.xml">
+    <arg name="max_throttle" value="1.0"/>
+    <arg name="max_brake" value="1.0"/>
+    <arg name="csv_path_accel_map" value="$(find-pkg-share raw_vehicle_cmd_converter)/data/default/accel_map.csv"/>
+    <arg name="csv_path_brake_map" value="$(find-pkg-share raw_vehicle_cmd_converter)/data/default/brake_map.csv"/>
+    <arg name="convert_accel_cmd" value="true" />
+    <arg name="convert_brake_cmd" value="true" />
+    <arg name="convert_steer_cmd" value="false" />
+  </include>
+
+  <!-- API -->
   <group>
-    <include file="$(find-pkg-share autoware_launch)/launch/components/tier4_control_component.launch.xml"/>
+    <!-- default_ad_api -->
+    <include file="$(find-pkg-share default_ad_api)/launch/default_ad_api.launch.py" />
+
+    <!-- ad_api_adaptors -->
+    <include file="$(find-pkg-share ad_api_adaptors)/launch/rviz_adaptors.launch.xml" />
   </group>
-
-
   <!-- Tools -->
   <group>
-    <node pkg="rviz2" exec="rviz2" name="rviz2" output="screen" args="-d $(find-pkg-share dallara_launch)/rviz_config/racing.rviz" />
+    <node pkg="rviz2" exec="rviz2" name="rviz2" output="screen" args="-d $(var rviz_config) -s $(find-pkg-share autoware_launch)/rviz/image/autoware.png" if="$(var rviz)"/>
   </group>
-
 
 </launch>
