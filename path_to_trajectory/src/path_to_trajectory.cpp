@@ -28,7 +28,7 @@ void PathToTrajectory::callback(const PathWithLaneId::SharedPtr msg) {
   for (auto& path_point_with_lane_id : msg->points) {
     TrajectoryPoint trajectory_point;
     trajectory_point.pose = path_point_with_lane_id.point.pose;
-    trajectory_point.longitudinal_velocity_mps = 1.38;
+    trajectory_point.longitudinal_velocity_mps = path_point_with_lane_id.point.longitudinal_velocity_mps;
     trajectory.points.emplace_back(std::move(trajectory_point));
   }
   pub_->publish(trajectory);
