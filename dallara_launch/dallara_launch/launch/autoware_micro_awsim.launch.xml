@@ -16,15 +16,11 @@
   <arg name="system_run_mode" default="online" description="run mode in system"/>
   <!-- Tools -->
   <arg name="rviz" default="true" description="launch rviz"/>
-  <arg name="rviz_config" default="$(find-pkg-share autoware_launch)/rviz/autoware.rviz" description="rviz config"/>
+  <arg name="rviz_config" default="$(find-pkg-share dallara_launch)/rviz_config/autoware.rviz" description="rviz config"/>
 
   <arg name="use_sim_time" default="true"/>
   <arg name="map_path" default="$(find-pkg-share dallara_launch)/map"/>
   <arg name="vehicle_model" default="dallara"  description="vehicle model name"/>
-
-  <include file="$(find-pkg-share dallara_launch)/launch/test_racing_vehicle.launch.xml"/>
-  <include file="$(find-pkg-share odom2tf)/launch/awsim_odom2tf.launch.xml"/>
-  <include file="$(find-pkg-share dallara_interface)/launch/dallara_interface.launch.xml"/>
 
   <!-- Global parameters -->
   <group scoped="false">
@@ -33,6 +29,36 @@
       <arg name="vehicle_model" value="$(var vehicle_model)"/>
     </include>
   </group>
+
+  <arg name="model_file" default="$(find-pkg-share dallara_description)/urdf/dallara.xacro" description="path to the file of model settings (*.xacro)"/>
+  <node name="robot_state_publisher" pkg="robot_state_publisher" exec="robot_state_publisher">
+      <param name="robot_description" value="$(command 'xacro $(var model_file)' 'warn')"/>
+  </node>
+  <node pkg="dallara_interface" exec="dallara_interface_node" name="dallara_interface" output="screen"/>
+
+  <!-- Localization -->
+  <group>
+    <push-ros-namespace namespace="localization"/>
+    <node pkg="topic_tools" exec="relay" name="relay" output="screen">
+      <param name="input_topic" value="/awsim/ground_truth/localization/kinematic_state"/>
+      <param name="output_topic" value="/localization/kinematic_state"/>
+     </node>
+    <node pkg="odom2tf" exec="odom2tf_node" name="odom2tf" output="screen">
+      <remap from="in_odom" to="/awsim/ground_truth/localization/kinematic_state"/>
+      <remap from="out_twist" to="/localization/twist_estimator/twist_with_covariance"/>
+    </node>
+    <!-- twist2accel -->
+    <group>
+      <node pkg="twist2accel" exec="twist2accel" name="twist2accel" output="screen">
+        <param name="accel_lowpass_gain" value="0.9"/>
+        <param name="use_odom" value="true"/>
+        <remap from="input/odom" to="/localization/kinematic_state"/>
+        <remap from="input/twist" to="/localization/twist_estimator/twist_with_covariance"/>
+        <remap from="output/accel" to="/localization/acceleration"/>
+      </node>
+    </group>
+  </group>
+
 
   <!-- Map -->
   <group>
@@ -76,17 +102,14 @@
     <group>
       <push-ros-namespace namespace="object_recognition"/>
 
-
       <!-- detection -->
-      <!--group>
+      <group>
         <push-ros-namespace namespace="detection"/>
         <node pkg="topic_tools" exec="relay" name="object_relay" output="screen">
-          <param from="input_topic" value="/awsim/ground_truth/perception/object_recognition/detection/objects"/>
-          <param from="output_topic" value="objects"/>
+          <param name="input_topic" value="/awsim/ground_truth/perception/object_recognition/detection/objects"/>
+          <param name="output_topic" value="objects"/>
         </node>
-        </group>
-
-      </group --> <!-- detection -->
+      </group> <!-- detection -->
 
       <!-- tracking -->
       <group>
@@ -101,13 +124,11 @@
           <param from="$(find-pkg-share multi_object_tracker)/config/default_tracker.param.yaml"/>
           <param from="$(find-pkg-share multi_object_tracker)/config/data_association_matrix.param.yaml"/>
         </node>
-
       </group> <!-- tracking -->
 
       <!-- prediction -->
       <group>
         <push-ros-namespace namespace="prediction"/>
-
         <!-- map_based_prediction -->
         <node pkg="map_based_prediction" exec="map_based_prediction" name="map_based_prediction" output="screen">
           <remap from="/vector_map" to="/map/vector_map"/>
@@ -115,10 +136,8 @@
           <remap from="objects" to="/perception/object_recognition/objects"/> <!-- autoware_auto_perception_msgs/PredictedObjects -->
           <param from="$(find-pkg-share map_based_prediction)/config/map_based_prediction.param.yaml"/>
         </node>
-
       </group> <!-- prediction -->
-    </group>
-    
+    </group> <!-- object_recognition -->
   </group> <!-- Perception -->
 
   <!-- Planning -->
@@ -133,6 +152,7 @@
       <node pkg="mission_planner" exec="mission_planner" name="mission_planner" output="screen">
         <remap from="input/modified_goal" to="/planning/scenario_planning/modified_goal"/>
         <remap from="input/vector_map" to="/map/vector_map"/>
+        <!-- <remap from="/localization/kinematic_state" to="/awsim/ground_truth/localization/kinematic_state"/> -->
         <remap from="debug/route_marker" to="/planning/mission_planning/route_marker"/>
         <param from="$(find-pkg-share autoware_launch)/config/planning/mission_planning/mission_planner/mission_planner.param.yaml"/>
       </node>
@@ -155,6 +175,20 @@
         <executable cmd="$(var cmd)" name="scenario_pub" shell="true"/>
       </group> <!-- scenario_selector -->
 
+      <!-- operation_mode -->
+      <group>
+        <arg name="cmd" default="ros2 topic pub /system/operation_mode/state autoware_adapi_v1_msgs/msg/OperationModeState '{
+          mode: 1,
+          is_autoware_control_enabled: true,
+          is_in_transition: false,
+          is_stop_mode_available: true,
+          is_autonomous_mode_available: true,
+          is_local_mode_available: true,
+          is_remote_mode_available: true
+          }'"/>
+        <executable cmd="$(var cmd)" name="operation_mode_pub" shell="true"/>
+      </group> <!-- operation_mode -->
+
       <!-- lane_driving -->
       <group>
         <push-ros-namespace namespace="lane_driving"/>
@@ -162,10 +196,6 @@
         <!-- behavior_planning -->
         <group>
           <push-ros-namespace namespace="behavior_planning"/>
-
-          <include file="$(find-pkg-share rtc_auto_mode_manager)/launch/rtc_auto_mode_manager.launch.xml">
-            <arg name="param_path" value="$(find-pkg-share autoware_launch)/config/planning/scenario_planning/lane_driving/behavior_planning/rtc_auto_mode_manager/rtc_auto_mode_manager.param.yaml"/>
-          </include>
 
           <!-- behavior_planning_container -->
           <node_container pkg="rclcpp_components" exec="component_container" name="behavior_planning_container" namespace="">
@@ -203,13 +233,49 @@
           </node_container>
         </group> <!-- behavior_planning -->
       </group> <!-- lane_driving -->
+
+      <!-- Customizable -->
+      <node pkg="path_to_trajectory" exec="path_to_trajectory_node" name="path_to_trajectory" output="screen">
+        <remap from="input" to="/planning/scenario_planning/lane_driving/behavior_planning/path_with_lane_id"/>
+        <remap from="output" to="/planning/scenario_planning/trajectory"/>
+      </node>
+
     </group>
   </group>
 
+  <!-- control -->
+  <node pkg="trajectory_follower_node" exec="simple_trajectory_follower_exe" name="simple_trajectory_follower" output="screen">
+    <param name="use_external_target_vel" value="false"/>
+    <param name="external_target_vel" value="10.0"/>
+    <param name="lateral_deviation" value="0.0"/>
+
+    <remap from="input/kinematics" to="/localization/kinematic_state"/>
+    <remap from="input/trajectory" to="/planning/scenario_planning/trajectory"/>
+    <remap from="output/control_cmd" to="/control/command/control_cmd"/>
+  </node>
+
+  <!-- vehicle -->
+  <include file="$(find-pkg-share raw_vehicle_cmd_converter)/launch/raw_vehicle_converter.launch.xml">
+    <arg name="max_throttle" value="1.0"/>
+    <arg name="max_brake" value="1.0"/>
+    <arg name="csv_path_accel_map" value="$(find-pkg-share raw_vehicle_cmd_converter)/data/default/accel_map.csv"/>
+    <arg name="csv_path_brake_map" value="$(find-pkg-share raw_vehicle_cmd_converter)/data/default/brake_map.csv"/>
+    <arg name="convert_accel_cmd" value="true" />
+    <arg name="convert_brake_cmd" value="true" />
+    <arg name="convert_steer_cmd" value="false" />
+  </include>
+
+  <!-- API -->
+  <group>
+    <!-- default_ad_api -->
+    <include file="$(find-pkg-share default_ad_api)/launch/default_ad_api.launch.py" />
+
+    <!-- ad_api_adaptors -->
+    <include file="$(find-pkg-share ad_api_adaptors)/launch/rviz_adaptors.launch.xml" />
+  </group>
   <!-- Tools -->
   <group>
-    <node pkg="rviz2" exec="rviz2" name="rviz2" output="screen" args="-d $(find-pkg-share dallara_launch)/rviz_config/racing.rviz" />
+    <node pkg="rviz2" exec="rviz2" name="rviz2" output="screen" args="-d $(var rviz_config) -s $(find-pkg-share autoware_launch)/rviz/image/autoware.png" if="$(var rviz)"/>
   </group>
-
 
 </launch>
