@@ -15,6 +15,7 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <math.h>
 #include "rclcpp/rclcpp.hpp"
 #include "dallara_interface.hpp"
 
@@ -34,7 +35,7 @@ namespace dallara_interface {
     // Subscribers
 
     actuation_cmd_sub_ = this->create_subscription<ActuationCommandStamped>(
-      "/vehicle/command/actuation_cmd", 1, 
+      "/control/command/actuation_cmd", 1, 
       std::bind(&DallaraInterface::actuation_callback, this, std::placeholders::_1)
     );
 
@@ -61,8 +62,8 @@ namespace dallara_interface {
     // to autonoma_msgs/VehicleInputs for racing car control.
     VehicleInputs vehicle_inputs_msg;
     vehicle_inputs_msg.header.stamp = get_clock()->now();
-    vehicle_inputs_msg.throttle_cmd = msg->actuation.accel_cmd;
-    vehicle_inputs_msg.brake_cmd = msg->actuation.brake_cmd;
+    vehicle_inputs_msg.throttle_cmd = msg->actuation.accel_cmd * 10000.0; // to 0~100%
+    vehicle_inputs_msg.brake_cmd = msg->actuation.brake_cmd * 1000; // to Pascal
     vehicle_inputs_msg.steering_cmd = msg->actuation.steer_cmd;
     vehicle_inputs_msg.gear_cmd = gear_cmd_dallara_;
     vehicle_inputs_pub_->publish(vehicle_inputs_msg);
@@ -84,7 +85,7 @@ namespace dallara_interface {
     VelocityReport velocity_report_msg;
     velocity_report_msg.header.stamp = get_clock()->now();
     velocity_report_msg.lateral_velocity = 0.0;
-    velocity_report_msg.longitudinal_velocity = msg->vehicle_speed_kmph;
+    velocity_report_msg.longitudinal_velocity = msg->vehicle_speed_kmph / 3.6; //km/h to m/s
     velocity_report_pub_->publish(velocity_report_msg);
 
     GearReport gear_report_msg;
@@ -96,7 +97,7 @@ namespace dallara_interface {
   void DallaraInterface::vehicle_data_callback(VehicleData::SharedPtr msg) {
     SteeringReport steering_report_msg;
     steering_report_msg.stamp = get_clock()->now();
-    steering_report_msg.steering_tire_angle = msg->steering_wheel_angle;
+    steering_report_msg.steering_tire_angle = msg->steering_wheel_angle * M_PI / 180.0;
     steering_report_pub_->publish(steering_report_msg);
   }
 
