@@ -244,14 +244,22 @@
   </group>
 
   <!-- control -->
-  <node pkg="trajectory_follower_node" exec="simple_trajectory_follower_exe" name="simple_trajectory_follower" output="screen">
-    <param name="use_external_target_vel" value="false"/>
-    <param name="external_target_vel" value="10.0"/>
-    <param name="lateral_deviation" value="0.0"/>
-
-    <remap from="input/kinematics" to="/localization/kinematic_state"/>
-    <remap from="input/trajectory" to="/planning/scenario_planning/trajectory"/>
-    <remap from="output/control_cmd" to="/control/command/control_cmd"/>
+  <arg name="lateral_controller_mode" default="mpc"/>
+  <arg name="longitudinal_controller_mode" default="pid"/>
+  <node pkg="trajectory_follower_node" exec="controller_node_exe" name="trajectory_follower" output="screen">
+    <param from="$(find-pkg-share autoware_launch)/config/control/common/nearest_search.param.yaml" />
+    <param from="$(find-pkg-share autoware_launch)/config/control/trajectory_follower/lateral/$(var lateral_controller_mode).param.yaml" />
+    <param from="$(find-pkg-share autoware_launch)/config/control/trajectory_follower/longitudinal/$(var longitudinal_controller_mode).param.yaml" />
+    <remap from= "~/input/reference_trajectory" to= "/planning/scenario_planning/trajectory"/>
+    <remap from= "~/input/current_odometry" to= "/localization/kinematic_state"/>
+    <remap from= "~/input/current_steering" to= "/vehicle/status/steering_status"/>
+    <remap from= "~/input/current_accel" to= "/localization/acceleration"/>
+    <remap from= "~/input/current_operation_mode" to= "/system/operation_mode/state"/>
+    <remap from= "~/output/predicted_trajectory" to= "lateral/predicted_trajectory"/>
+    <remap from= "~/output/lateral_diagnostic" to= "lateral/diagnostic"/>
+    <remap from= "~/output/slope_angle" to= "longitudinal/slope_angle"/>
+    <remap from= "~/output/longitudinal_diagnostic" to= "longitudinal/diagnostic"/>
+    <remap from= "~/output/control_cmd" to= "control_cmd"/>
   </node>
 
   <!-- vehicle -->
