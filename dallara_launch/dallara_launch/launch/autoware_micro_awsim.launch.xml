@@ -244,9 +244,19 @@
   </group>
 
   <!-- control -->
-  <node pkg="trajectory_follower_node" exec="simple_trajectory_follower_exe" name="simple_trajectory_follower" output="screen">
+  <!-- <node pkg="trajectory_follower_node" exec="simple_trajectory_follower_exe" name="simple_trajectory_follower" output="screen">
     <param name="use_external_target_vel" value="true"/>
     <param name="external_target_vel" value="5.0"/>
+    <param name="lateral_deviation" value="0.0"/>
+
+    <remap from="input/kinematics" to="/localization/kinematic_state"/>
+    <remap from="input/trajectory" to="/planning/scenario_planning/trajectory"/>
+    <remap from="output/control_cmd" to="/control/command/control_cmd"/>
+  </node> -->
+
+  <node pkg="simple_pure_pursuit" exec="simple_pure_pursuit" name="simple_pure_pursuit_node" output="screen">
+    <param name="use_external_target_vel" value="true"/>
+    <param name="external_target_vel" value="15.0"/>
     <param name="lateral_deviation" value="0.0"/>
 
     <remap from="input/kinematics" to="/localization/kinematic_state"/>
