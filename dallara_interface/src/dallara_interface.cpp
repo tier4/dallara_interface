@@ -64,7 +64,7 @@ namespace dallara_interface {
     vehicle_inputs_msg.header.stamp = get_clock()->now();
     vehicle_inputs_msg.throttle_cmd = msg->actuation.accel_cmd * 100.0; // to 0~100%
     vehicle_inputs_msg.brake_cmd = msg->actuation.brake_cmd * 1000; // to Pascal
-    vehicle_inputs_msg.steering_cmd = msg->actuation.steer_cmd * 180.0 / M_PI;
+    vehicle_inputs_msg.steering_cmd = msg->actuation.steer_cmd * 180.0 / M_PI * 19.5;
     vehicle_inputs_msg.gear_cmd = gear_cmd_dallara_;
     vehicle_inputs_pub_->publish(vehicle_inputs_msg);
 
